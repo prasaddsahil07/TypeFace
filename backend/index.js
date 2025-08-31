@@ -5,6 +5,7 @@ import { connectDB } from './db/connectDB.js';
 
 
 import userRoutes from "./routes/user.route.js";
+import transactionRoutes from "./routes/transaction.route.js";
 
 dotenv.config();
 
@@ -22,6 +23,11 @@ app.use(cors({
 
 
 app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/transaction", transactionRoutes);
+
+app.get("/", (req, res) => {
+    res.status(200).json({ message: "Welcome to Expense Tracker API" });
+});
 
 app.listen(() => {
     console.log(`Server is running on post: ${PORT}`);
