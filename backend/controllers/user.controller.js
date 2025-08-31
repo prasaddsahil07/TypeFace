@@ -18,7 +18,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
         return { accessToken, refreshToken }
 
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while generating refresh and access token")
+        throw new Error("Something went wrong while generating refresh and access token")
     }
 }
 
@@ -101,10 +101,6 @@ export const loginUser = async (req, res) => {
         // generate access and refresh tokens
         const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
 
-        // set httpOnly cookie options
-        const options = {
-            httpOnly: true,
-        }
 
         // logged in user
         const loggedInUser = await User.findById(user._id).select("-refreshToken -password");
@@ -113,10 +109,15 @@ export const loginUser = async (req, res) => {
             return res.status(500).json({ message: "Internal Server Error while login user, no logged in user found" });
         }
 
+        // set httpOnly cookie options
+        const options = {
+            httpOnly: true,
+        }
+
         res.status(200)
             .cookie("accessToken", accessToken, options)
             .cookie("refreshToken", refreshToken, options)
-            .json({ message: "User logged in successfully", data: loggedInUser });
+            .json({ message: "User logged in successfully", data: loggedInUser, accessToken, refreshToken });
     } catch (error) {
         console.log("Error in user login:", error);
         res.status(500).json({ message: "Internal Server Error while logging in user" });
@@ -137,7 +138,9 @@ export const logoutUser = async (req, res) => {
         await user.save({ validateBeforeSave: false });
 
         const options = {
-            httpOnly: true
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
         }
 
         res.status(200)
@@ -176,7 +179,10 @@ export const refreshAccessToken = async (req, res) => {
         const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshTokens(user._id);
 
         const options = {
-            httpOnly: true
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
         }
 
         res.status(200)

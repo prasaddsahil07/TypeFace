@@ -1,5 +1,6 @@
 import { Transaction } from "../models/transaction.model.js";
 import { User } from "../models/user.model.js";
+import mongoose from "mongoose";
 
 // add a new transaction
 export const addTransaction = async (req, res) => {
@@ -39,7 +40,7 @@ export const addTransaction = async (req, res) => {
         });
 
         if (!newTransaction) {
-            res.ststus(500).json({ message: "Unable to add a new transaction" });
+            return res.status(500).json({ message: "Unable to add a new transaction" });
         }
 
         res.status(201).json({ message: "New transaction added successfully", data: newTransaction });
