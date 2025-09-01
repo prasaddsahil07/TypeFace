@@ -49,7 +49,7 @@ const AddTransaction = () => {
     setMessage('');
 
     try {
-      await api.post("/transaction", {
+      await api.post("/transaction/add", {
         ...data,
         amount: parseFloat(data.amount),
         date: new Date(data.date).toISOString(),
@@ -73,7 +73,7 @@ const AddTransaction = () => {
   const getCategoryColor = (category) => {
     switch (category) {
       case 'expense': return 'text-red-400 border-red-500 bg-red-900/20';
-      case 'saving': return 'text-green-400 border-green-500 bg-green-900/20';
+      case 'income': return 'text-green-400 border-green-500 bg-green-900/20';
       case 'investment': return 'text-blue-400 border-blue-500 bg-blue-900/20';
       default: return 'text-gray-400 border-gray-500 bg-gray-900/20';
     }
@@ -133,7 +133,7 @@ const AddTransaction = () => {
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { value: 'expense', label: 'Expense', icon: TrendingDown },
-                  { value: 'saving', label: 'Saving', icon: TrendingUp },
+                  { value: 'income', label: 'Income', icon: TrendingUp },
                   { value: 'investment', label: 'Investment', icon: Target },
                 ].map((category) => (
                   <label key={category.value} className="cursor-pointer">

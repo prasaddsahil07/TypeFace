@@ -75,56 +75,48 @@ export const registerUser = async (req, res) => {
     }
 }
 
-
-// function to handle user login
 export const loginUser = async (req, res) => {
-    try {
-        const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
-
-        // Check if user exists
-        const user = await User.findOne({ email });
-
-        if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
-
-        // Check if password is correct 
-        const isPasswordCorrect = await user.isPasswordCorrect(password);
-        if (!isPasswordCorrect) {
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
-
-        // generate access and refresh tokens
-        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
-
-
-        // logged in user
-        const loggedInUser = await User.findById(user._id).select("-refreshToken -password");
-
-        if (!loggedInUser) {
-            return res.status(500).json({ message: "Internal Server Error while login user, no logged in user found" });
-        }
-
-        // set httpOnly cookie options
-        const options = {
-            httpOnly: true,
-            sameSite: "none",   // important when frontend & backend are on different ports
-            secure: false
-        }
-
-        res.status(200)
-            .cookie("accessToken", accessToken, options)
-            .cookie("refreshToken", refreshToken, options)
-            .json({ message: "User logged in successfully", data: loggedInUser, accessToken, refreshToken });
-    } catch (error) {
-        console.log("Error in user login:", error);
-        res.status(500).json({ message: "Internal Server Error while logging in user" });
+    if (!email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
     }
-}
+
+    const user = await User.findOne({ email });
+    if (!user || !(await user.isPasswordCorrect(password))) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+    const loggedInUser = await User.findById(user._id).select("-refreshToken -password");
+
+    if (!loggedInUser) {
+      return res.status(500).json({ message: "Internal Server Error: no logged in user found" });
+    }
+
+    // cookie config (switch based on env)
+    const isProd = process.env.NODE_ENV === "production";
+    const options = {
+      httpOnly: true,
+      secure: isProd,                 // true only in prod
+      sameSite: isProd ? "none" : "lax", // lax for localhost, none for cross-site
+    };
+
+    res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json({
+        message: "User logged in successfully",
+        data: loggedInUser,
+      });
+  } catch (error) {
+    console.log("Error in user login:", error);
+    res.status(500).json({ message: "Internal Server Error while logging in user" });
+  }
+};
 
 
 
@@ -209,7 +201,7 @@ export const updateUserDetails = async (req, res) => {
         const user = await User.findById(userId);
         if (!user) {
             console.log("User not found for updating details");
-            res.status(404).json({ message: "User not found for updating details" });
+            return res.status(404).json({ message: "User not found for updating details" });
         }
 
         const updatedUser = await User.findByIdAndUpdate(

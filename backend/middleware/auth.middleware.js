@@ -5,7 +5,7 @@ export const verifyJWT = async (req, res, next) => {
     try {
         const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
 
-        if(!token){
+        if (!token) {
             return res.status(401).json({ message: "No token provided, authorization denied" });
         }
 
@@ -13,15 +13,42 @@ export const verifyJWT = async (req, res, next) => {
 
         const user = await User.findById(decodedToken?._id).select("-refreshToken -password");
 
-        if(!user){
+        if (!user) {
             return res.status(401).json({ message: "User not found, authorization denied" });
         }
 
         req.user = user;
-        
+
         next();
     } catch (error) {
         console.error("Error in auth middleware:", error);
         return res.status(500).json({ message: "Something went wrong while verifying token" });
+    }
+}
+
+
+export const verifyJWTPassword = async (req, res, next) => {
+    try {
+        const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
+
+        if (!token) {
+            throw new ApiError(401, "unauthorized Request")
+        }
+
+        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+
+        const user = await User.findById(decodedToken?._id).select("-refreshToken")
+
+        if (!user) {
+            console.log("User not found in auth middleware")
+            return res.status(401).json({ message: "User not found, authorization denied" });
+        }
+
+        req.user = user
+
+        next()
+    } catch (error) {
+        console.error("Error in auth middleware:", error);
+        return res.status(500).json({ message: "Something went wrong while verifying token and changing password" });
     }
 }
