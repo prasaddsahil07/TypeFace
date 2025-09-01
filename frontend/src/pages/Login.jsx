@@ -2,32 +2,60 @@
  * Login page component with modern dark theme UI
  * Handles user authentication and redirects to dashboard
  */
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, LogIn, Mail, Lock } from 'lucide-react';
-import { useAuth } from '../context/AuthContext.jsx';
+import toast from 'react-hot-toast';
+// import { useAuth } from '../context/AuthContext.jsx';
+import { Context } from '../main.jsx';
+import axios from 'axios';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loading, error } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const { isAuthorized, setIsAuthorized, setUser } = useContext(Context);
   const navigate = useNavigate();
+  const { register, handleSubmit, formState: { errors } } = useForm();
+  const [error, setError] = useState('');
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm();
-
-  const onSubmit = async (data) => {
+  const handleLogin = async (data) => {
+    setLoading(true);
+    setError('');
     try {
-      await login(data); // backend sets cookie + returns user
+      const response = await axios.post(
+        'http://localhost:8000/api/v1/users/login',
+        {
+          email: data.email,
+          password: data.password
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
+        }
+      );
+
+      toast.success(response.data.message);
+      setIsAuthorized(true);
+      setUser(response.data.data);  
+      
       navigate('/dashboard');
-    } catch (err) {
-      console.error("Login failed:", err);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Login failed. Please try again.');
+      setIsAuthorized(false);
+      setUser(null);
+      setError(error.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
+  if(isAuthorized){
+    navigate('/dashboard');
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 sm:px-6 lg:px-8">
@@ -46,7 +74,7 @@ const Login = () => {
         </div>
 
         {/* Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit(handleLogin)}>
           {/* Error Message */}
           {error && (
             <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg">

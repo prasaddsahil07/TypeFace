@@ -2,7 +2,7 @@
  * Profile page component for viewing and updating user information
  * Includes profile details and password change functionality
  */
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useForm } from 'react-hook-form';
 import { 
   User, 
@@ -15,10 +15,10 @@ import {
   Camera,
   Key
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext.jsx';
+import { Context } from '../main.jsx';  // import global context
 
 const Profile = () => {
-  const { user, updateUser, changePassword } = useAuth();
+  const { user, setUser, isAuthorized } = useContext(Context); // using global context
   const [activeTab, setActiveTab] = useState('profile');
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -31,7 +31,6 @@ const Profile = () => {
     register: registerProfile,
     handleSubmit: handleSubmitProfile,
     formState: { errors: profileErrors },
-    reset: resetProfile
   } = useForm({
     defaultValues: {
       name: user?.name || '',
@@ -50,37 +49,62 @@ const Profile = () => {
 
   const watchNewPassword = watch('newPassword');
 
+  // Update Profile Handler
   const onUpdateProfile = async (data) => {
     setUpdateLoading(true);
     setMessage('');
-    
-    const result = await updateUser(data);
-    
-    if (result.success) {
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    } else {
-      setMessage({ type: 'error', text: result.error });
+
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/users/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // important for cookie auth
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        setUser(result.user); // update global context user
+        setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Update failed' });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Something went wrong' });
     }
-    
+
     setUpdateLoading(false);
   };
 
+  // Change Password Handler
   const onChangePassword = async (data) => {
     setPasswordLoading(true);
     setMessage('');
-    
-    const result = await changePassword({
-      oldPassword: data.oldPassword,
-      newPassword: data.newPassword
-    });
-    
-    if (result.success) {
-      setMessage({ type: 'success', text: 'Password changed successfully!' });
-      resetPassword();
-    } else {
-      setMessage({ type: 'error', text: result.error });
+
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/users/change-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          oldPassword: data.oldPassword,
+          newPassword: data.newPassword,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Password changed successfully!' });
+        resetPassword();
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Password change failed' });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Something went wrong' });
     }
-    
+
     setPasswordLoading(false);
   };
 
@@ -88,6 +112,14 @@ const Profile = () => {
     { id: 'profile', name: 'Profile Information', icon: User },
     { id: 'password', name: 'Change Password', icon: Key },
   ];
+
+  if (!isAuthorized) {
+    return (
+      <div className="text-center text-white mt-20">
+        <h2>Please login to view your profile.</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 p-6">
@@ -155,81 +187,56 @@ const Profile = () => {
               {activeTab === 'profile' && (
                 <div>
                   <h2 className="text-xl font-semibold text-white mb-6">Profile Information</h2>
-                  
                   <form onSubmit={handleSubmitProfile(onUpdateProfile)} className="space-y-6">
-                    {/* Name Field */}
+                    {/* Name */}
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
                         Full Name
                       </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <User className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          {...registerProfile('name', {
-                            required: 'Name is required',
-                            minLength: {
-                              value: 2,
-                              message: 'Name must be at least 2 characters',
-                            },
-                          })}
-                          type="text"
-                          className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                          placeholder="Enter your full name"
-                        />
-                      </div>
+                      <input
+                        {...registerProfile('name', { required: 'Name is required' })}
+                        type="text"
+                        className="w-full px-3 py-3 bg-gray-700 text-white rounded-lg border border-gray-600"
+                      />
                       {profileErrors.name && (
-                        <p className="mt-1 text-sm text-red-400">{profileErrors.name.message}</p>
+                        <p className="text-red-400 text-sm">{profileErrors.name.message}</p>
                       )}
                     </div>
 
-                    {/* Email Field (Read-only) */}
+                    {/* Email (read-only) */}
                     <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                        Email Address
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Email
                       </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Mail className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="email"
-                          value={user?.email || ''}
-                          disabled
-                          className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-700 placeholder-gray-400 text-gray-400 bg-gray-600 rounded-lg cursor-not-allowed"
-                        />
-                      </div>
-                      <p className="mt-1 text-sm text-gray-500">Email cannot be changed</p>
+                      <input
+                        type="email"
+                        value={user?.email || ''}
+                        disabled
+                        className="w-full px-3 py-3 bg-gray-600 text-gray-300 rounded-lg border border-gray-600"
+                      />
                     </div>
 
-                    {/* Username Field (Read-only) */}
+                    {/* Username (read-only) */}
                     <div>
-                      <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         Username
                       </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Users className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          value={user?.username || ''}
-                          disabled
-                          className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-700 placeholder-gray-400 text-gray-400 bg-gray-600 rounded-lg cursor-not-allowed"
-                        />
-                      </div>
-                      <p className="mt-1 text-sm text-gray-500">Username cannot be changed</p>
+                      <input
+                        type="text"
+                        value={user?.username || ''}
+                        disabled
+                        className="w-full px-3 py-3 bg-gray-600 text-gray-300 rounded-lg border border-gray-600"
+                      />
                     </div>
 
-                    {/* Gender Field */}
+                    {/* Gender */}
                     <div>
-                      <label htmlFor="gender" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         Gender
                       </label>
                       <select
                         {...registerProfile('gender', { required: 'Gender is required' })}
-                        className="appearance-none relative block w-full px-3 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        className="w-full px-3 py-3 bg-gray-700 text-white rounded-lg border border-gray-600"
                       >
                         <option value="">Select gender</option>
                         <option value="male">Male</option>
@@ -237,25 +244,18 @@ const Profile = () => {
                         <option value="other">Other</option>
                       </select>
                       {profileErrors.gender && (
-                        <p className="mt-1 text-sm text-red-400">{profileErrors.gender.message}</p>
+                        <p className="text-red-400 text-sm">{profileErrors.gender.message}</p>
                       )}
                     </div>
 
-                    {/* Submit Button */}
-                    <div className="pt-4">
+                    {/* Save */}
+                    <div>
                       <button
                         type="submit"
                         disabled={updateLoading}
-                        className="flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                       >
-                        {updateLoading ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <>
-                            <Save className="w-5 h-5 mr-2" />
-                            Update Profile
-                          </>
-                        )}
+                        {updateLoading ? 'Updating...' : 'Update Profile'}
                       </button>
                     </div>
                   </form>
@@ -265,120 +265,54 @@ const Profile = () => {
               {activeTab === 'password' && (
                 <div>
                   <h2 className="text-xl font-semibold text-white mb-6">Change Password</h2>
-                  
                   <form onSubmit={handleSubmitPassword(onChangePassword)} className="space-y-6">
                     {/* Old Password */}
                     <div>
-                      <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         Current Password
                       </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Lock className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          {...registerPassword('oldPassword', {
-                            required: 'Current password is required',
-                          })}
-                          type={showOldPassword ? 'text' : 'password'}
-                          className="appearance-none relative block w-full pl-10 pr-10 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                          placeholder="Enter current password"
-                        />
-                        <button
-                          type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          onClick={() => setShowOldPassword(!showOldPassword)}
-                        >
-                          {showOldPassword ? (
-                            <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                          ) : (
-                            <Eye className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                          )}
-                        </button>
-                      </div>
-                      {passwordErrors.oldPassword && (
-                        <p className="mt-1 text-sm text-red-400">{passwordErrors.oldPassword.message}</p>
-                      )}
+                      <input
+                        {...registerPassword('oldPassword', { required: 'Current password is required' })}
+                        type={showOldPassword ? 'text' : 'password'}
+                        className="w-full px-3 py-3 bg-gray-700 text-white rounded-lg border border-gray-600"
+                      />
                     </div>
 
                     {/* New Password */}
                     <div>
-                      <label htmlFor="newPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         New Password
                       </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Lock className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          {...registerPassword('newPassword', {
-                            required: 'New password is required',
-                            minLength: {
-                              value: 6,
-                              message: 'Password must be at least 6 characters',
-                            },
-                          })}
-                          type={showNewPassword ? 'text' : 'password'}
-                          className="appearance-none relative block w-full pl-10 pr-10 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                          placeholder="Enter new password"
-                        />
-                        <button
-                          type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          onClick={() => setShowNewPassword(!showNewPassword)}
-                        >
-                          {showNewPassword ? (
-                            <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                          ) : (
-                            <Eye className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                          )}
-                        </button>
-                      </div>
-                      {passwordErrors.newPassword && (
-                        <p className="mt-1 text-sm text-red-400">{passwordErrors.newPassword.message}</p>
-                      )}
+                      <input
+                        {...registerPassword('newPassword', { required: 'New password is required' })}
+                        type={showNewPassword ? 'text' : 'password'}
+                        className="w-full px-3 py-3 bg-gray-700 text-white rounded-lg border border-gray-600"
+                      />
                     </div>
 
                     {/* Confirm New Password */}
                     <div>
-                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
                         Confirm New Password
                       </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Lock className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          {...registerPassword('confirmPassword', {
-                            required: 'Please confirm your new password',
-                            validate: (value) =>
-                              value === watchNewPassword || 'Passwords do not match',
-                          })}
-                          type="password"
-                          className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                          placeholder="Confirm new password"
-                        />
-                      </div>
-                      {passwordErrors.confirmPassword && (
-                        <p className="mt-1 text-sm text-red-400">{passwordErrors.confirmPassword.message}</p>
-                      )}
+                      <input
+                        {...registerPassword('confirmPassword', {
+                          required: 'Please confirm your password',
+                          validate: (val) => val === watchNewPassword || 'Passwords do not match',
+                        })}
+                        type="password"
+                        className="w-full px-3 py-3 bg-gray-700 text-white rounded-lg border border-gray-600"
+                      />
                     </div>
 
-                    {/* Submit Button */}
-                    <div className="pt-4">
+                    {/* Submit */}
+                    <div>
                       <button
                         type="submit"
                         disabled={passwordLoading}
-                        className="flex items-center justify-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                       >
-                        {passwordLoading ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <>
-                            <Key className="w-5 h-5 mr-2" />
-                            Change Password
-                          </>
-                        )}
+                        {passwordLoading ? 'Changing...' : 'Change Password'}
                       </button>
                     </div>
                   </form>

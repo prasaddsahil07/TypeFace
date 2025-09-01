@@ -112,6 +112,8 @@ export const loginUser = async (req, res) => {
         // set httpOnly cookie options
         const options = {
             httpOnly: true,
+            sameSite: "none",   // important when frontend & backend are on different ports
+            secure: false
         }
 
         res.status(200)
@@ -259,16 +261,16 @@ export const changeCurrentUserPassword = async (req, res) => {
 
 
 // get user details
-export const getUser = async(req, res) => {
-    try{
+export const getUser = async (req, res) => {
+    try {
         const userId = req.user?._id;
 
         const user = await User.findById(userId).select("-refreshToken -password");
-        if(!user){
+        if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
         res.status(200).json({ message: "User details fetched successfully", data: user });
-    } catch(error){
+    } catch (error) {
         console.log("Error in getting user details:", error);
         res.status(500).json({ message: "Internal Server Error while getting user details" });
     }

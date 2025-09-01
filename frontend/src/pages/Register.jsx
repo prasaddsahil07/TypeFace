@@ -2,17 +2,20 @@
  * Registration page component with modern dark theme UI
  * Handles user registration with proper validation
  */
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, UserPlus, Mail, Lock, User, Users } from 'lucide-react';
-import { useAuth } from '../context/AuthContext.jsx';
+import { Context } from '../main.jsx';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { register: registerUser, loading, error } = useAuth();
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
+  const navigate = useNavigate();
   const {
     register,
     handleSubmit,
@@ -21,13 +24,41 @@ const Register = () => {
   } = useForm();
 
   const watchPassword = watch('password');
+  const { setIsAuthorized, setUser } = useContext(Context);
 
-  const onSubmit = async (data) => {
-    const result = await registerUser(data);
-    if (result.success) {
-      navigate('/login', { 
-        state: { message: 'Registration successful! Please log in.' }
-      });
+  // handle form submit
+  const handleRegister = async (data) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await axios.post(
+        'http://localhost:8000/api/v1/users/register',
+        {
+          name: data.name,
+          username: data.username,
+          email: data.email,
+          password: data.password,
+          gender: data.gender,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          withCredentials: true,
+        }
+      );
+
+      toast.success(response.data.message || 'Registration successful!');
+      setIsAuthorized(true);
+      setUser(response.data.data);
+      navigate('/login');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Registration failed.');
+      setError(err.response?.data?.message || 'Registration failed.');
+      setIsAuthorized(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,7 +79,7 @@ const Register = () => {
         </div>
 
         {/* Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit(handleRegister)}>
           {/* Error Message */}
           {error && (
             <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg">

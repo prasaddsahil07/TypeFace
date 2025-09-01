@@ -1,9 +1,6 @@
-/**
- * Statistics page component
- * Displays charts and analytics for transaction data
- */
-import React, { useState, useEffect } from 'react';
-import { 
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import {
   TrendingUp,
   TrendingDown,
   Target,
@@ -12,9 +9,10 @@ import {
   Wallet,
   BarChart3,
   Calendar,
-  PieChart
-} from 'lucide-react';
-import { transactionAPI } from '../utils/api';
+  PieChart,
+} from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
 const Statistics = () => {
   const [stats, setStats] = useState({
@@ -31,10 +29,11 @@ const Statistics = () => {
   const fetchStatistics = async () => {
     try {
       setLoading(true);
+
       const [categoryRes, paymentRes, monthlyRes] = await Promise.all([
-        transactionAPI.getCategoryStats(),
-        transactionAPI.getPaymentTypeStats(),
-        transactionAPI.getMonthlyStats(),
+        axios.get(`${API_BASE}/transaction/stats/category`, { withCredentials: true }),
+        axios.get(`${API_BASE}/transaction/stats/payment-type`, { withCredentials: true }),
+        axios.get(`${API_BASE}/transaction/stats/monthly`, { withCredentials: true }),
       ]);
 
       setStats({
@@ -43,7 +42,7 @@ const Statistics = () => {
         monthlyStats: monthlyRes.data.data || [],
       });
     } catch (error) {
-      console.error('Failed to fetch statistics:', error);
+      console.error("Failed to fetch statistics:", error);
     } finally {
       setLoading(false);
     }
@@ -51,35 +50,57 @@ const Statistics = () => {
 
   const getCategoryIcon = (category) => {
     switch (category) {
-      case 'expense': return <TrendingDown className="h-5 w-5" />;
-      case 'saving': return <TrendingUp className="h-5 w-5" />;
-      case 'investment': return <Target className="h-5 w-5" />;
-      default: return <DollarSign className="h-5 w-5" />;
+      case "expense":
+        return <TrendingDown className="h-5 w-5" />;
+      case "saving":
+        return <TrendingUp className="h-5 w-5" />;
+      case "investment":
+        return <Target className="h-5 w-5" />;
+      default:
+        return <DollarSign className="h-5 w-5" />;
     }
   };
 
   const getCategoryColor = (category) => {
     switch (category) {
-      case 'expense': return { bg: 'bg-red-500', text: 'text-red-400', light: 'bg-red-500/20' };
-      case 'saving': return { bg: 'bg-green-500', text: 'text-green-400', light: 'bg-green-500/20' };
-      case 'investment': return { bg: 'bg-blue-500', text: 'text-blue-400', light: 'bg-blue-500/20' };
-      default: return { bg: 'bg-gray-500', text: 'text-gray-400', light: 'bg-gray-500/20' };
+      case "expense":
+        return { bg: "bg-red-500", text: "text-red-400", light: "bg-red-500/20" };
+      case "saving":
+        return { bg: "bg-green-500", text: "text-green-400", light: "bg-green-500/20" };
+      case "investment":
+        return { bg: "bg-blue-500", text: "text-blue-400", light: "bg-blue-500/20" };
+      default:
+        return { bg: "bg-gray-500", text: "text-gray-400", light: "bg-gray-500/20" };
     }
   };
 
   const getPaymentIcon = (paymentType) => {
     switch (paymentType) {
-      case 'card': return <CreditCard className="h-5 w-5" />;
-      case 'upi': return <Wallet className="h-5 w-5" />;
-      case 'cash': return <DollarSign className="h-5 w-5" />;
-      default: return <DollarSign className="h-5 w-5" />;
+      case "card":
+        return <CreditCard className="h-5 w-5" />;
+      case "upi":
+        return <Wallet className="h-5 w-5" />;
+      case "cash":
+        return <DollarSign className="h-5 w-5" />;
+      default:
+        return <DollarSign className="h-5 w-5" />;
     }
   };
 
   const getMonthName = (month) => {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     return months[month - 1];
   };
@@ -175,7 +196,7 @@ const Statistics = () => {
                   {stats.categoryStats.map((category) => {
                     const colors = getCategoryColor(category._id);
                     const percentage = totalAmount > 0 ? ((category.totalAmount / totalAmount) * 100).toFixed(1) : 0;
-                    
+
                     return (
                       <div key={category._id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -228,10 +249,10 @@ const Statistics = () => {
                     const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500'];
                     const textColors = ['text-blue-400', 'text-green-400', 'text-purple-400'];
                     const lightColors = ['bg-blue-500/20', 'bg-green-500/20', 'bg-purple-500/20'];
-                    
+
                     const colorIndex = index % colors.length;
                     const percentage = totalAmount > 0 ? ((payment.totalAmount / totalAmount) * 100).toFixed(1) : 0;
-                    
+
                     return (
                       <div key={payment._id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -284,7 +305,7 @@ const Statistics = () => {
                 {stats.monthlyStats.slice(0, 6).map((month) => {
                   const maxAmount = Math.max(...stats.monthlyStats.map(m => m.totalAmount));
                   const percentage = maxAmount > 0 ? (month.totalAmount / maxAmount) * 100 : 0;
-                  
+
                   return (
                     <div key={`${month._id.year}-${month._id.month}`} className="space-y-2">
                       <div className="flex items-center justify-between">

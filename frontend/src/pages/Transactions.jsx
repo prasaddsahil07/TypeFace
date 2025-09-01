@@ -4,7 +4,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
+import axios from 'axios';
+import {
   Plus,
   Search,
   Filter,
@@ -21,7 +22,6 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { transactionAPI } from '../utils/api';
 import { format } from 'date-fns';
 
 const Transactions = () => {
@@ -36,51 +36,59 @@ const Transactions = () => {
 
   const itemsPerPage = 10;
 
+  // ✅ axios instance
+  const api = axios.create({
+    baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
+    withCredentials: true, // send cookies
+    headers: { "Content-Type": "application/json" },
+  });
+
   useEffect(() => {
     fetchTransactions();
   }, [currentPage]);
 
+  // ✅ Fetch Transactions
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const response = await transactionAPI.getAll(currentPage, itemsPerPage);
-      setTransactions(response.data.data || []);
+      const res = await api.get(`/transaction?page=${currentPage}&limit=${itemsPerPage}`);
+      setTransactions(res.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch transactions:', error);
+      console.error("Failed to fetch transactions:", error);
       setMessage({ type: 'error', text: 'Failed to load transactions' });
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Delete Transaction
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this transaction?')) {
-      return;
-    }
+    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
 
     try {
       setDeleteLoading(id);
-      await transactionAPI.delete(id);
-      setMessage({ type: 'success', text: 'Transaction deleted successfully' });
-      fetchTransactions(); // Refresh the list
+      await api.delete(`/transaction/${id}`);
+      setMessage({ type: "success", text: "Transaction deleted successfully" });
+      fetchTransactions();
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Failed to delete transaction';
-      setMessage({ type: 'error', text: errorMessage });
+      const errorMessage = error.response?.data?.message || "Failed to delete transaction";
+      setMessage({ type: "error", text: errorMessage });
     } finally {
       setDeleteLoading('');
     }
   };
 
-  // Filter transactions based on search and filters
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.location?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter transactions
+  const filteredTransactions = transactions.filter((transaction) => {
+    const matchesSearch =
+      transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || transaction.category === selectedCategory;
     const matchesPaymentType = !selectedPaymentType || transaction.paymentType === selectedPaymentType;
-    
     return matchesSearch && matchesCategory && matchesPaymentType;
   });
 
+  // Category & Payment helpers
   const getCategoryIcon = (category) => {
     switch (category) {
       case 'expense': return <TrendingDown className="h-4 w-4" />;
@@ -132,29 +140,26 @@ const Transactions = () => {
     <div className="min-h-screen bg-gray-900 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Transactions</h1>
-              <p className="text-gray-400">Manage your financial transactions</p>
-            </div>
-            <Link
-              to="/transactions/add"
-              className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Transaction
-            </Link>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Transactions</h1>
+            <p className="text-gray-400">Manage your financial transactions</p>
           </div>
+          <Link
+            to="/transactions/add"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Transaction
+          </Link>
         </div>
 
         {/* Message */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg border ${
-            message.type === 'success' 
-              ? 'bg-green-900/50 border-green-700 text-green-200'
-              : 'bg-red-900/50 border-red-700 text-red-200'
-          }`}>
+          <div className={`mb-6 p-4 rounded-lg border ${message.type === 'success'
+            ? 'bg-green-900/50 border-green-700 text-green-200'
+            : 'bg-red-900/50 border-red-700 text-red-200'
+            }`}>
             {message.text}
           </div>
         )}
@@ -234,29 +239,28 @@ const Transactions = () => {
                             {transaction.category === 'expense' ? '-' : '+'}₹{transaction.amount.toLocaleString()}
                           </p>
                         </div>
-                        
+
                         <div className="mt-2 flex items-center space-x-4 text-sm text-gray-400">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1" />
                             {format(new Date(transaction.date), 'MMM dd, yyyy')}
                           </div>
-                          
+
                           <div className="flex items-center">
                             {getPaymentIcon(transaction.paymentType)}
                             <span className="ml-1 capitalize">{transaction.paymentType}</span>
                           </div>
-                          
+
                           <div className="flex items-center">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              transaction.category === 'expense' ? 'bg-red-900/50 text-red-200' :
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${transaction.category === 'expense' ? 'bg-red-900/50 text-red-200' :
                               transaction.category === 'saving' ? 'bg-green-900/50 text-green-200' :
-                              'bg-blue-900/50 text-blue-200'
-                            }`}>
+                                'bg-blue-900/50 text-blue-200'
+                              }`}>
                               {getCategoryIcon(transaction.category)}
                               <span className="ml-1 capitalize">{transaction.category}</span>
                             </span>
                           </div>
-                          
+
                           {transaction.location && (
                             <div className="flex items-center">
                               <MapPin className="h-4 w-4 mr-1" />
@@ -276,7 +280,7 @@ const Transactions = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </Link>
-                      
+
                       <button
                         onClick={() => handleDelete(transaction._id)}
                         disabled={deleteLoading === transaction._id}
@@ -315,34 +319,36 @@ const Transactions = () => {
         </div>
 
         {/* Pagination */}
-        {transactions.length >= itemsPerPage && (
-          <div className="mt-6 flex items-center justify-between">
-            <p className="text-sm text-gray-400">
-              Showing page {currentPage}
-            </p>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <span className="px-3 py-1 bg-gray-800 text-white rounded-lg">
-                {currentPage}
-              </span>
-              <button
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                disabled={transactions.length < itemsPerPage}
-                className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
+        {
+          transactions.length >= itemsPerPage && (
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-sm text-gray-400">
+                Showing page {currentPage}
+              </p>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="px-3 py-1 bg-gray-800 text-white rounded-lg">
+                  {currentPage}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  disabled={transactions.length < itemsPerPage}
+                  className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          )
+        }
+      </div >
+    </div >
   );
 };
 

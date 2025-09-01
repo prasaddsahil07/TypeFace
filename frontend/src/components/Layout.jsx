@@ -2,36 +2,49 @@
  * Main Layout component with navigation and sidebar
  * Provides consistent layout for all authenticated pages
  */
-import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { 
-  Home, 
-  CreditCard, 
-  User, 
-  LogOut, 
-  Menu, 
+import React, { useState, useContext } from "react";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import {
+  Home,
+  CreditCard,
+  User,
+  LogOut,
+  Menu,
   X,
   PlusCircle,
-  BarChart3
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext.jsx';
+  BarChart3,
+} from "lucide-react";
+import { Context } from "../main.jsx";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { user, setUser, setIsAuthorized } = useContext(Context);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      await axios.post(
+        "http://localhost:8000/api/v1/users/logout",
+        {},
+        { withCredentials: true }
+      );
+      setUser(null);
+      setIsAuthorized(false);
+      toast.success("Logged out successfully");
+      navigate("/login");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Logout failed");
+    }
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Transactions', href: '/transactions', icon: CreditCard },
-    { name: 'Add Transaction', href: '/transactions/add', icon: PlusCircle },
-    { name: 'Statistics', href: '/statistics', icon: BarChart3 },
-    { name: 'Profile', href: '/profile', icon: User },
+    { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "Transactions", href: "/transactions", icon: CreditCard },
+    { name: "Add Transaction", href: "/transactions/add", icon: PlusCircle },
+    { name: "Statistics", href: "/statistics", icon: BarChart3 },
+    { name: "Profile", href: "/profile", icon: User },
   ];
 
   const NavItem = ({ item, mobile = false }) => (
@@ -40,9 +53,9 @@ const Layout = () => {
       className={({ isActive }) =>
         `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
           isActive
-            ? 'bg-blue-600 text-white'
-            : 'text-gray-300 hover:text-white hover:bg-gray-700'
-        } ${mobile ? 'mx-4' : ''}`
+            ? "bg-blue-600 text-white"
+            : "text-gray-300 hover:text-white hover:bg-gray-700"
+        } ${mobile ? "mx-4" : ""}`
       }
       onClick={() => mobile && setSidebarOpen(false)}
     >
@@ -61,7 +74,9 @@ const Layout = () => {
             <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <CreditCard className="h-5 w-5 text-white" />
             </div>
-            <span className="ml-3 text-xl font-bold text-white">ExpenseTracker</span>
+            <span className="ml-3 text-xl font-bold text-white">
+              ExpenseTracker
+            </span>
           </div>
 
           {/* Navigation */}
@@ -76,7 +91,10 @@ const Layout = () => {
             <div className="flex items-center p-3 bg-gray-700 rounded-lg">
               <img
                 className="h-8 w-8 rounded-full"
-                src={user?.profilePicture || 'https://avatar.iran.liara.run/public/46'}
+                src={
+                  user?.profilePicture ||
+                  "https://avatar.iran.liara.run/public/46"
+                }
                 alt="Profile"
               />
               <div className="ml-3 flex-1">
@@ -96,9 +114,12 @@ const Layout = () => {
       </div>
 
       {/* Mobile sidebar */}
-      <div className={`lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
+      <div className={`lg:hidden ${sidebarOpen ? "block" : "hidden"}`}>
         <div className="fixed inset-0 z-40 flex">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
+          <div
+            className="fixed inset-0 bg-gray-600 bg-opacity-75"
+            onClick={() => setSidebarOpen(false)}
+          />
           <div className="relative flex flex-col flex-1 w-64 bg-gray-800">
             <div className="absolute top-0 right-0 -mr-12 pt-2">
               <button
@@ -114,7 +135,9 @@ const Layout = () => {
               <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <CreditCard className="h-5 w-5 text-white" />
               </div>
-              <span className="ml-3 text-xl font-bold text-white">ExpenseTracker</span>
+              <span className="ml-3 text-xl font-bold text-white">
+                ExpenseTracker
+              </span>
             </div>
 
             {/* Mobile navigation */}
@@ -129,7 +152,10 @@ const Layout = () => {
               <div className="flex items-center p-3 bg-gray-700 rounded-lg mx-4">
                 <img
                   className="h-8 w-8 rounded-full"
-                  src={user?.profilePicture || 'https://avatar.iran.liara.run/public/46'}
+                  src={
+                    user?.profilePicture ||
+                    "https://avatar.iran.liara.run/public/46"
+                  }
                   alt="Profile"
                 />
                 <div className="ml-3 flex-1">
@@ -165,7 +191,9 @@ const Layout = () => {
                 <div className="h-6 w-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded flex items-center justify-center">
                   <CreditCard className="h-3 w-3 text-white" />
                 </div>
-                <span className="ml-2 text-lg font-bold text-white">ExpenseTracker</span>
+                <span className="ml-2 text-lg font-bold text-white">
+                  ExpenseTracker
+                </span>
               </div>
             </div>
             <button

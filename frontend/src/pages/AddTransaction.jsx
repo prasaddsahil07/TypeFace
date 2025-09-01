@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { 
   Plus,
   DollarSign,
@@ -16,7 +17,6 @@ import {
   TrendingDown,
   TrendingUp
 } from 'lucide-react';
-import { transactionAPI } from '../utils/api';
 
 const AddTransaction = () => {
   const [loading, setLoading] = useState(false);
@@ -31,18 +31,25 @@ const AddTransaction = () => {
     reset
   } = useForm({
     defaultValues: {
-      date: new Date().toISOString().split('T')[0], // Today's date
+      date: new Date().toISOString().split('T')[0], // today's date
     }
   });
 
   const watchCategory = watch('category');
+
+  // ✅ axios instance
+  const api = axios.create({
+    baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
+    withCredentials: true,
+    headers: { "Content-Type": "application/json" },
+  });
 
   const onSubmit = async (data) => {
     setLoading(true);
     setMessage('');
 
     try {
-      const response = await transactionAPI.create({
+      await api.post("/transaction", {
         ...data,
         amount: parseFloat(data.amount),
         date: new Date(data.date).toISOString(),
@@ -50,8 +57,8 @@ const AddTransaction = () => {
 
       setMessage({ type: 'success', text: 'Transaction added successfully!' });
       reset();
-      
-      // Redirect to transactions list after 2 seconds
+
+      // Redirect after 2s
       setTimeout(() => {
         navigate('/transactions');
       }, 2000);
@@ -63,30 +70,12 @@ const AddTransaction = () => {
     }
   };
 
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'expense': return <TrendingDown className="h-5 w-5" />;
-      case 'saving': return <TrendingUp className="h-5 w-5" />;
-      case 'investment': return <Target className="h-5 w-5" />;
-      default: return <DollarSign className="h-5 w-5" />;
-    }
-  };
-
   const getCategoryColor = (category) => {
     switch (category) {
       case 'expense': return 'text-red-400 border-red-500 bg-red-900/20';
       case 'saving': return 'text-green-400 border-green-500 bg-green-900/20';
       case 'investment': return 'text-blue-400 border-blue-500 bg-blue-900/20';
       default: return 'text-gray-400 border-gray-500 bg-gray-900/20';
-    }
-  };
-
-  const getPaymentIcon = (paymentType) => {
-    switch (paymentType) {
-      case 'card': return <CreditCard className="h-5 w-5" />;
-      case 'upi': return <Wallet className="h-5 w-5" />;
-      case 'cash': return <DollarSign className="h-5 w-5" />;
-      default: return <DollarSign className="h-5 w-5" />;
     }
   };
 
@@ -113,9 +102,10 @@ const AddTransaction = () => {
         {/* Form */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            
             {/* Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Description *
               </label>
               <input
@@ -127,7 +117,7 @@ const AddTransaction = () => {
                   },
                 })}
                 type="text"
-                className="appearance-none relative block w-full px-3 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className="w-full px-3 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter transaction description"
               />
               {errors.description && (
@@ -137,7 +127,7 @@ const AddTransaction = () => {
 
             {/* Category */}
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Category *
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -171,7 +161,7 @@ const AddTransaction = () => {
 
             {/* Amount */}
             <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Amount *
               </label>
               <div className="relative">
@@ -181,18 +171,12 @@ const AddTransaction = () => {
                 <input
                   {...register('amount', {
                     required: 'Amount is required',
-                    min: {
-                      value: 0.01,
-                      message: 'Amount must be greater than 0',
-                    },
-                    pattern: {
-                      value: /^\d+(\.\d{1,2})?$/,
-                      message: 'Enter a valid amount',
-                    },
+                    min: { value: 0.01, message: 'Amount must be greater than 0' },
+                    pattern: { value: /^\d+(\.\d{1,2})?$/, message: 'Enter a valid amount' },
                   })}
                   type="number"
                   step="0.01"
-                  className="appearance-none relative block w-full pl-8 pr-3 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full pl-8 pr-3 py-3 border border-gray-700 text-white bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="0.00"
                 />
               </div>
@@ -203,7 +187,7 @@ const AddTransaction = () => {
 
             {/* Payment Type */}
             <div>
-              <label htmlFor="paymentType" className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Payment Method *
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -237,17 +221,15 @@ const AddTransaction = () => {
 
             {/* Date */}
             <div>
-              <label htmlFor="date" className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Date *
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Calendar className="h-5 w-5 text-gray-400" />
-                </div>
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   {...register('date', { required: 'Date is required' })}
                   type="date"
-                  className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full pl-10 pr-3 py-3 border border-gray-700 text-white bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               {errors.date && (
@@ -257,28 +239,26 @@ const AddTransaction = () => {
 
             {/* Location (Optional) */}
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Location <span className="text-gray-500">(optional)</span>
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MapPin className="h-5 w-5 text-gray-400" />
-                </div>
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   {...register('location')}
                   type="text"
-                  className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-700 placeholder-gray-400 text-white bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="w-full pl-10 pr-3 py-3 border border-gray-700 text-white bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter location (optional)"
                 />
               </div>
             </div>
 
-            {/* Submit Buttons */}
+            {/* Buttons */}
             <div className="flex space-x-4 pt-4">
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -289,11 +269,11 @@ const AddTransaction = () => {
                   </>
                 )}
               </button>
-              
+
               <button
                 type="button"
                 onClick={() => navigate('/transactions')}
-                className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
               >
                 Cancel
               </button>
